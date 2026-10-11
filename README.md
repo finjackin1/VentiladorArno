@@ -55,5 +55,11 @@ nuvem. Detalhes em `ventilador/protocolo.py`.
 - `ferramentas/teste_ble.py` — teste do protocolo sem interface.
 - `ferramentas/empacotar.py` — gera o `.exe` portátil e o zip do release.
 
+## Como foi feito
+O Ventilador Arno foi desenvolvido com apoio de inteligência artificial: o código, e também a análise do
+aplicativo oficial que revelou o protocolo Bluetooth, foram feitos em conversa com o **Claude**, da
+Anthropic (no Claude Code). As decisões de projeto, o desenho da interface, os testes com o ventilador de
+verdade e o rumo de cada funcionalidade são de [finjackin](https://github.com/finjackin1).
+
 ## Licença
 GPLv3 — veja `LICENSE`.
