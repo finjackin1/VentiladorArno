@@ -140,8 +140,18 @@ def _codigo(tecla: str) -> int | None:
 
     try:
         import ctypes
+        from .atalhos import TECLAS_OEM, caractere_da_tecla, layout_atual
 
-        resposta = ctypes.windll.user32.VkKeyScanW(ctypes.c_wchar(tecla))
+        # pontuacao: a tecla cujo caractere (sem modificador) e este, no layout
+        # da JANELA -- o mesmo que a captura usou (11/out/2026). Esta thread tem
+        # o layout dela, que pode ser outro.
+        for vk in TECLAS_OEM:
+            if caractere_da_tecla(vk) == tecla.lower():
+                return vk
+        u = ctypes.windll.user32
+        u.VkKeyScanExW.argtypes = [ctypes.c_wchar, ctypes.c_void_p]
+        u.VkKeyScanExW.restype = ctypes.c_short
+        resposta = u.VkKeyScanExW(tecla, layout_atual())
         if resposta != -1:
             codigo = resposta & 0xFF
             if codigo:

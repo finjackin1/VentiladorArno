@@ -8,6 +8,7 @@ import datetime
 import logging
 import os
 import tkinter as tk
+from types import SimpleNamespace
 
 from . import __version__, atalhos as AT, estilo as E, inicio_windows, moldura
 from . import protocolo as P
@@ -740,6 +741,34 @@ class Janela:
         b.bind("<Return>", self._cap_tecla)
         self.raiz.after(300, lambda: self._capturando and self._capturando[1] is b and
                         b.bind("<FocusOut>", lambda _e=None: self._cap_fim(None), add="+"))
+        self._cap_vigiar(b)
+
+    def _cap_vigiar(self, b, antes=None):
+        """RESERVA da captura (11/out/2026, teclado US-Internacional): tecla de
+        acento (' ") e pontuacao com AltGr NAO chegam ao Tk -- o log dele so
+        tinha "capturando", nenhuma tecla. So enquanto captura, le direto do
+        Windows quais teclas de pontuacao desceram e segue o caminho normal."""
+        if not (self._capturando and self._capturando[1] is b):
+            return
+        try:
+            import ctypes
+            gaks = ctypes.windll.user32.GetAsyncKeyState
+            agora = {vk for vk in AT.TECLAS_OEM if gaks(vk) & 0x8000}
+            if antes is not None:
+                for vk in sorted(agora - antes):
+                    presos = self._capturando[2]
+                    for vk_m, nome in ((0x11, "Control_L"), (0x12, "Alt_L"), (0x10, "Shift_L"),
+                                       (0x5B, "Win_L"), (0x5C, "Win_L")):
+                        if gaks(vk_m) & 0x8000:
+                            presos.add(nome)
+                    log.info("captura pela reserva: tecla 0x%X", vk)
+                    self._cap_tecla(SimpleNamespace(keysym="", keycode=vk))
+                    if not (self._capturando and self._capturando[1] is b):
+                        return
+        except Exception:
+            log.exception("reserva da captura")
+            return
+        self.raiz.after(30, lambda: self._cap_vigiar(b, agora))
 
     def _cap_tecla(self, e):
         if not self._capturando:
@@ -756,10 +785,13 @@ class Janela:
         teclas = AT.escrever(presos, tecla)
         motivo = AT.porque_nao(presos, tecla)
         dono = AT.quem_usa(self.cfg, teclas, menos=acao)
+        if not motivo and not dono and not livre_no_windows(teclas, self.cfg.atalhos.get(acao, "")):
+            motivo = "outro programa"
         if motivo or dono:
             # o MOTIVO aparece no proprio botao (antes: recusa muda, so texto vermelho)
             curto = ("use Ctrl/Alt/Win + tecla" if "Falta Ctrl" in motivo or "Falta a tecla" in motivo
-                     else f"já usado: {AT.rotulo(dono)}" if dono else "tecla não aceita")
+                     else f"já usado: {AT.rotulo(dono)}" if dono
+                     else "outro programa já usa" if motivo == "outro programa" else "tecla não aceita")
             b.cor_texto = E.ERRO
             b.definir(texto=curto)
             log.info("atalho recusado: %s (%s)", teclas, motivo or "ja usado")
@@ -1125,6 +1157,28 @@ class Janela:
 
     def rodar(self):
         self.raiz.mainloop()
+
+
+def livre_no_windows(teclas: str, atual: str = "") -> bool:
+    """O Windows deixa registrar esta combinacao AGORA? (11/out/2026: no PC dele
+    Ctrl+Alt+; e Ctrl+Alt+' ja eram de outro programa -- o atalho seria gravado
+    e ficaria vermelho.) Registra e solta na hora. A combinacao que ESTA acao ja
+    usa e nossa mesma: nao conta como ocupada."""
+    if not teclas or teclas.strip().lower() == (atual or "").strip().lower():
+        return True
+    try:
+        import ctypes
+        from .motor_atalhos import traduzir
+        par = traduzir(teclas)
+        if par is None:
+            return True                       # quem recusa formato e o porque_nao
+        u = ctypes.windll.user32
+        if not u.RegisterHotKey(None, 0xBFFE, par[0], par[1]):
+            return False
+        u.UnregisterHotKey(None, 0xBFFE)
+    except Exception:
+        log.debug("teste de atalho livre falhou", exc_info=True)
+    return True
 
 
 def quebrar(caixa: tk.Widget, *rotulos: tk.Label):

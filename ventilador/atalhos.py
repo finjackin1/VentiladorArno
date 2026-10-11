@@ -151,19 +151,62 @@ NAO_SERVEM = {
 }
 
 
+# Teclas de pontuacao (codigos virtuais "OEM"): o caractere de cada uma muda
+# conforme o layout (no ABNT o ";" fica em 0xBF; no americano, em 0xBA).
+TECLAS_OEM = (0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE2)
+
+
+def layout_atual() -> int:
+    """O layout de teclado da janela (thread principal): o mesmo na captura e
+    no registro do atalho -- o motor roda em outra thread, com outro layout."""
+    try:
+        import ctypes
+        import threading
+        u = ctypes.windll.user32
+        u.GetKeyboardLayout.restype = ctypes.c_void_p
+        return u.GetKeyboardLayout(threading.main_thread().native_id) or 0
+    except Exception:
+        return 0
+
+
+def caractere_da_tecla(vk: int) -> str:
+    """O caractere da tecla `vk` SEM modificador no layout atual ('' se nao ha).
+    Tecla de acento ("morta", ex.: ' e " no US-Internacional) vem com o bit
+    alto ligado: so o caractere interessa."""
+    try:
+        import ctypes
+        from ctypes import wintypes as W
+        u = ctypes.windll.user32
+        u.MapVirtualKeyExW.argtypes = [W.UINT, W.UINT, ctypes.c_void_p]
+        u.MapVirtualKeyExW.restype = W.UINT
+        c = u.MapVirtualKeyExW(vk, 2, layout_atual()) & 0xFFFF      # 2 = MAPVK_VK_TO_CHAR
+        return chr(c).lower() if c >= 0x20 else ""
+    except Exception:
+        return ""
+
+
 def tecla_fisica(keysym: str, keycode: int) -> str:
     """O keysym da tecla FISICA (VentiladorArno, 10/out/2026).
 
     No teclado brasileiro Ctrl+Alt e o AltGr: Ctrl+Alt+2 chega como
     "twosuperior" (²), Ctrl+Alt+Q como "slash" -- e o atalho era recusado ou
     gravado errado. No Windows o `keycode` do Tk e o codigo virtual da tecla:
-    letra, numero e F1..F24 saem dele; o resto segue pelo keysym."""
+    letra, numero e F1..F24 saem dele; o resto segue pelo keysym.
+
+    (11/out/2026, LightWireless, US-Internacional) Pontuacao tambem sai da
+    tecla: ' e " sao teclas de acento e chegavam como "Multi_key"; com AltGr,
+    ; e : viravam outros simbolos -- tudo recusado. Agora vira o caractere da
+    tecla no layout (":" = Shift + ";", '"' = Shift + "'")."""
     if 0x30 <= keycode <= 0x39 or 0x41 <= keycode <= 0x5A:
         return chr(keycode).lower()
     if 0x70 <= keycode <= 0x87:
         return "F%d" % (keycode - 0x6F)
     if 0x60 <= keycode <= 0x69:              # teclado numerico
         return chr(keycode - 0x30)
+    if keycode in TECLAS_OEM:
+        c = caractere_da_tecla(keycode)
+        if c:
+            return c
     return keysym
 
 
