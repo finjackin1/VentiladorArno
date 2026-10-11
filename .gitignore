@@ -1,0 +1,44 @@
+# Material de terceiros e analise (nunca publicar)
+original/
+re/
+*.apk
+*.xapk
+*.aab
+*.dex
+
+# Saidas de execucao
+relatorios/
+*.log
+config.json
+
+# Ferramentas baixadas (JRE, jadx) e .bat gerados com o caminho da maquina
+ferramentas/jre/
+ferramentas/jadx/
+ferramentas/dl/
+ferramentas/*-tarefa-inicio.bat
+
+# Build / distribuicao
+build/
+dist/
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Documentos internos e ferramentas do Claude Code (nao sao do programa)
+docs/CONTEXTO.md
+docs/PARADA.md
+docs/RECON.md
+docs/contexto/
+docs/historico/
+.claude/
+CLAUDE.md
+
+# Editor / SO
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
