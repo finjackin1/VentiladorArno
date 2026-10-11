@@ -35,6 +35,7 @@ PADRAO = {
         "iniciar_com_windows": False,
         "comecar_na_bandeja": False,
         "ao_abrir": "nada",          # nada | v0 | v1 | v2 | v3 | rotina:<id>
+        "ao_sair": "nada",           # idem, ao fechar o programa (segurar o X)
     },
     "janela": {"x": None, "y": None},
 }

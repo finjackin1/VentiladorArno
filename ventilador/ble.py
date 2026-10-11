@@ -323,6 +323,15 @@ class Conexao:
                 tem_pedido = self._pedido is not None
             if not tem_pedido:
                 await self._dormir(max(0.02, proxima_leitura - time.monotonic()))
+        # SAINDO com pedido na mao ("ao sair" da janela): escreve antes do disconnect
+        with self._trava:
+            dado, self._pedido = self._pedido, None
+        if dado and self._fim and cli.is_connected and not caiu.is_set():
+            try:
+                log.info("escreve ao sair %s", dado.hex(" "))
+                await asyncio.wait_for(cli.write_gatt_char(P.CONTROLE, dado, response=com_resposta), LIMITE_OP_S)
+            except Exception as e:
+                log.warning("pedido de saida nao foi: %s: %s", type(e).__name__, e)
         return "conectou"
 
     async def _ler(self, cli):

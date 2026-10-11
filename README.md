@@ -17,7 +17,8 @@ Bluetooth do PC, no lugar do aplicativo do celular.
   consegue (Bluetooth do PC desligado, ventilador fora da tomada, celular conectado nele…).
 - **Bandeja**: um clique liga/desliga, dois cliques abrem a janela.
 - **Atalhos de teclado globais** (você escolhe as teclas), **iniciar com o Windows** (com a opção
-  "iniciar mais rápido"), **iniciar minimizado** e **soltar o ventilador** para usar o app do celular.
+  "iniciar mais rápido"), **iniciar minimizado**, **ao conectar** e **ao sair** (desligar, uma
+  velocidade ou uma rotina) e **soltar o ventilador** para usar o app do celular.
 
 Oscilação e inclinação não são controladas por Bluetooth neste modelo (nem pelo app oficial).
 

@@ -38,6 +38,9 @@ ESTADOS = {
     "sem_bluetooth": "Bluetooth do PC desligado ou ausente",
 }
 PEDIDO_MOSTRAR = relatorios() / ".mostrar"
+# (11/out/2026) o empacotar pede para fechar antes de trocar o .exe: sair SEM a
+# acao de saida do aparelho (build nao mexe nele). Pedido velho: apagar ao abrir.
+PEDIDO_SAIR = relatorios() / ".sair"
 
 
 def fmt_min(m: int) -> str:
@@ -103,6 +106,10 @@ class Janela:
             self._ja_mostrou = True
             moldura.fixar_barra_de_tarefas(r)
         self._agenda_t = 0
+        try:
+            PEDIDO_SAIR.unlink()                 # pedido velho (de outro build) nao fecha quem acabou de abrir
+        except OSError:
+            pass
         r.after(50, self._ciclo)
 
     # == barra, rodape ===================================================
@@ -590,6 +597,11 @@ class Janela:
                                 ao_clicar=self._opc_menu_ao_abrir, largura=150, altura=32, raio=8,
                                 fundo=E.CAMADA_1, tam=9.5, peso="normal", lado_icone=12)
         self.b_ao_abrir.pack(side="right")
+        f = self._linha(p.dentro, "Ao sair", "ao fechar o programa (segurar o X)")
+        self.b_ao_sair = Botao(f, texto=self._rotulo_ao("ao_sair"), icone="seta_baixo",
+                               ao_clicar=self._opc_menu_ao_sair, largura=150, altura=32, raio=8,
+                               fundo=E.CAMADA_1, tam=9.5, peso="normal", lado_icone=12)
+        self.b_ao_sair.pack(side="right")
         f = self._linha(p.dentro, "Ventilador", "libera para o app do celular")
         solto = self.estado == "solto"
         self.b_soltar = Botao(f, texto="Reconectar" if solto else "Soltar", ao_clicar=self._opc_soltar,
@@ -609,8 +621,20 @@ class Janela:
                  fg=E.APAGADO, font=E.fonte(8.5)).pack(anchor="w", pady=(E.px(8), 0))
 
     def _rotulo_ao_abrir(self):
-        a = self.cfg.opcoes.get("ao_abrir", "nada")
+        return self._rotulo_ao("ao_abrir")
+
+    def _rotulo_ao(self, chave):
+        a = self.cfg.opcoes.get(chave, "nada")
         return "Não fazer nada" if a == "nada" else self._rotulo_acao(a)
+
+    def _opc_menu_ao_sair(self):
+        # (11/out/2026, padrao da casa) mesmas escolhas do "ao conectar"
+        def escolher(a):
+            self.cfg.opcoes["ao_sair"] = a
+            self.cfg.gravar()
+            self.b_ao_sair.definir(texto=self._rotulo_ao("ao_sair"))
+        Menu(self.b_ao_sair, [(n, (lambda a=a: escolher(a))) for n, a in self._opcoes_acao(True)],
+             marcado=self._rotulo_ao("ao_sair"), alinhar="direita")
 
     def _opc_menu_ao_abrir(self):
         def escolher(a):
@@ -911,6 +935,9 @@ class Janela:
         ok = self.estado == "conectado"        # sem conexao nao ha estado real para mostrar
         for i, b in enumerate(getattr(self, "b_vel", [])):
             b.definir(selecionado=ok and i == v, habilitado=ok)
+        if getattr(self, "b_vel", None):
+            # (11/out/2026, gosto dele) botao de estado selecionado diz o ESTADO, nao a acao
+            self.b_vel[0].definir(texto="Desligado" if ok and v == 0 else "Desligar")
 
     def _pintar_timer(self):
         if not hasattr(self, "b_timer"):
@@ -1006,6 +1033,13 @@ class Janela:
             except OSError:
                 pass
             self.mostrar()
+        if self._agenda_t % 10 == 5 and PEDIDO_SAIR.exists():
+            try:
+                os.remove(PEDIDO_SAIR)
+            except OSError:
+                pass
+            log.info("pedido de saida (novo build)")
+            self.sair(acao_de_saida=False)
 
     def _atalho(self, a):
         if a == "alternar":
@@ -1073,8 +1107,13 @@ class Janela:
         else:
             moldura.minimizar(self.raiz)
 
-    def sair(self):
+    def sair(self, acao_de_saida: bool = True):
         log.info("saindo")
+        a = self.cfg.opcoes.get("ao_sair", "nada") if acao_de_saida else "nada"
+        if a != "nada" and self.cx.conectado():
+            # vira o ultimo pedido da conexao: ble.py o escreve ANTES do disconnect
+            self.executar(a, "ao sair")
+            log.info("ao sair: %s", a)
         if self._job_gravar:                     # nada de config pendente perdido
             self.raiz.after_cancel(self._job_gravar)
             self._gravar_agora()

@@ -75,7 +75,9 @@ def _run_desativar() -> bool:
 def _rodar(args: list[str]) -> tuple[bool, str]:
     """schtasks sem piscar console (o app roda em pythonw)."""
     try:
-        r = subprocess.run(args, capture_output=True, text=True, timeout=30,
+        # saida do schtasks vem na pagina OEM (cp850): em modo UTF-8 do Python o
+        # text=True puro quebrava a thread de leitura (11/out/2026, LightWireless)
+        r = subprocess.run(args, capture_output=True, text=True, encoding="oem", errors="replace", timeout=30,
                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
